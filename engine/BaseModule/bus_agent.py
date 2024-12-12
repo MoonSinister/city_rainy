@@ -22,6 +22,8 @@ class BusAgent(Agent):
         else:
             print("Reached the end of the route. Cannot move further.")
 
+
+
     def step(self) -> None:
         print(f"Hi, I am a bus agent, ID: {str(self.route_name)}.")
         self.move()
