@@ -1,32 +1,27 @@
-from typing import Tuple
+from typing import List, Tuple
 from BaseModule.agent import Agent
 from BaseModule.model import Model
 from BaseModule.physical_environment import Position
 
 class BusAgent(Agent):
-    def __init__(self, unique_id: int, model: Model, bounds: Tuple[Tuple[float, float], Tuple[float, float]]) -> None:
+    def __init__(self, unique_id: int, model: Model, route: List[Tuple[float, float]],route_name: str) -> None:
         super().__init__(unique_id, model)
-        self.bounds = bounds  # ((min_lat, max_lat), (min_lon, max_lon))
-
-    def is_within_bounds(self, pos: Position) -> bool:
-        """检查当前位置是否在指定范围内"""
-        min_lat, max_lat = self.bounds[0]
-        min_lon, max_lon = self.bounds[1]
-        lat, lon = pos
-        return min_lat <= lat <= max_lat and min_lon <= lon <= max_lon
+        if not route:
+            raise ValueError("Route cannot be empty.")
+        self.route_name = route_name
+        self.route = route
+        self.current_index = 0
+        self.pos = route[0]
 
     def move(self) -> None:
         """尝试移动到一个新的位置，并检查是否在范围内"""
-        if self.pos is not None:
-            new_lat = self.random.uniform(self.bounds[0][0], self.bounds[0][1])
-            new_lon = self.random.uniform(self.bounds[1][0], self.bounds[1][1])
-            new_pos = (new_lat, new_lon)
-            if self.is_within_bounds(new_pos):
-                self.pos = new_pos
-                print(f"Moved to new position: {self.pos}")
-            else:
-                print("New position is out of bounds, staying at current position.")
+        if self.current_index < len(self.route) - 1:
+            self.current_index += 1
+            self.pos = self.route[self.current_index]
+            print(f"Moved to position {self.pos}.")
+        else:
+            print("Reached the end of the route. Cannot move further.")
 
     def step(self) -> None:
-        print(f"Hi, I am a bus agent, ID: {str(self.unique_id)}.")
+        print(f"Hi, I am a bus agent, ID: {str(self.route_name)}.")
         self.move()

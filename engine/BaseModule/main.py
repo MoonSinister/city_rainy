@@ -1,36 +1,45 @@
-# 假设 BaseModule.model 和 BaseModule.physical_environment 是可用的模块
 from BaseModule.model import Model
 from BaseModule.time import BaseScheduler
 from BaseModule.physical_environment import Position
 from bus_agent import BusAgent
+import json
 from random import Random
 
 
-
-
+def readroute(id: int):
+    with open('route.geojson', 'r', encoding='utf-8') as file:
+        data = json.load(file)
+    routename = data['features'][id]['properties']
+    print(data['features'][0]['properties'])
+    """ 公交线路名称 """
+    route = data['features'][0]
+    print(data['features'][0]['geometry']['coordinates'])
+    """ 公交线路经纬度 """
+    return route
 def main():
     model = Model()
     timesch=BaseScheduler(model)
-    bounds = ((34.0, 35.0), (118.0, 119.0))
-    agent1 = BusAgent(unique_id=1, model=model, bounds=bounds)
-    agent1.pos = (34.5, 118.5)
-    agent2 = BusAgent(unique_id=2, model=model, bounds=bounds)
-    agent2.pos = (34.5, 118.5)
-    timesch.add(agent1)
-    timesch.add(agent2)
+
+    route0info = readroute(0)
+    route0 = route0info['geometry']['coordinates']
+
+    route0_name=route0info['properties']
+    agent0 = BusAgent(unique_id=1, model=model,route=route0,route_name=route0_name)
+
+
+    timesch.add(agent0)
+
 
     for i in range(5):
         i=i+1
         timesch.step()
 
 
-    print(1)
-    # 初始化位置设置为范围内的一个点
 
 
     # 输出初始化状态
-    print(f"Initial position: {agent1.pos}")
-    print(f"Initial position: {agent2.pos}")
+
+
 
 
 
