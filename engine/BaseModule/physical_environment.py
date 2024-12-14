@@ -7,11 +7,15 @@ import itertools
 import math
 from numbers import Real
 from warnings import warn
+from pyproj import Proj, transform
+""" 用于将经纬度转换为UTM二维坐标系"""
+
 
 import numpy as np
 import numpy.typing as npt
 import networkx as nx
 import collections
+import matplotlib.pyplot as plt
 
 from BaseModule.agent import Agent
 from typing import (
@@ -865,6 +869,45 @@ class NetworkGrid:
             self.G.nodes[node_id]["agent"]
             for node_id in itertools.filterfalse(self.is_cell_empty, cell_list)
         )
+
+
+class GeoGrid:
+
+    # 定义输入输出投影
+    def map_to_grid(latlon_list, grid_size=1):
+        """
+        将经纬度数组转换为二维网格模型。
+        :param latlon_pairs: 经纬度对的列表
+        :param grid_size: 网格单元的大小（以米为单位）
+        :return: (x_indices, y_indices) 表示的二维网格坐标
+        """
+        proj_in = Proj(init='epsg:4326')  # WGS84
+        proj_out = Proj(init='epsg:32650')  # UTM Zone 50N
+
+        latitudes = [point[0] for point in latlon_list]
+        longitudes = [point[1] for point in latlon_list]
+        print(latitudes)
+        # 转换经纬度为平面坐标
+        x_coords, y_coords = transform(proj_in, proj_out, latitudes,longitudes)
+
+
+        x_coords = np.array(x_coords)
+        y_coords = np.array(y_coords)
+        # 计算网格索引
+        x_indices = (x_coords / grid_size).astype(int)
+        y_indices = (y_coords / grid_size).astype(int)
+
+        return x_indices,y_indices
+
+    def visualize_grid(x_coords, y_coords):
+        plt.figure(figsize=(6, 10))
+        plt.scatter(x_coords, y_coords, s=0.1,c='blue', marker='o', label='Data Points')
+        plt.title('Scatter plot of geographical points')
+        plt.xlabel('X Coordinates (meters)')
+        plt.ylabel('Y Coordinates (meters)')
+        plt.grid()
+        plt.legend()
+        plt.show()
 
 
 
