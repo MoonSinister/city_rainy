@@ -31,7 +31,8 @@ def main():
     #
 
     # 首先导入路网，将其转换为二维网格
-    x,y = mygrid.map_to_grid(pos)
+    mygrid.add_path(mygrid,pos)
+    x,y = mygrid.get_path(mygrid)
 
     mygrid.visualize_grid(x,y)
 
