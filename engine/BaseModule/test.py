@@ -1,4 +1,5 @@
 from BaseModule.physical_environment import GeoGrid
+from BaseModule.bus_agent import BusAgent
 import json
 
 def readroute(id: int):
@@ -26,9 +27,7 @@ def main():
     pos = readsite()
     route0info = readroute(1)
     route0 = route0info['geometry']['coordinates']
-
     mygrid =GeoGrid
-    #
 
     # 首先导入路网，将其转换为二维网格
     mygrid.add_path(mygrid,pos)

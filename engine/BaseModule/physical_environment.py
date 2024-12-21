@@ -879,14 +879,12 @@ class GeoGrid:
         将路网读入网格（路网数据为坐标对列表）
         """
         # 初始化四个列表，分别用于存储路径和代理的坐标
+        self.x_min = 0
+        self.y_min = 0
         self.path_x = []
         self.path_y = []
-        self.agent_x = []
-        self.agent_y = []
+        self.agent_pos = dict()
 
-        self.agentindex = []
-        # 用于每个id储存其坐标对，例如id=i的agent，当前所处坐标为[self.agent_x[agentindex[1]],self.agent_y[agentindex[i]]]
-        # 后期如果需要删除agent，不能直接删除agentindex中的元素
 
     def add_path(self,latlon_list) -> None:
         """
@@ -897,70 +895,52 @@ class GeoGrid:
         """
         proj_in = Proj(init='epsg:4326')  # WGS84
         proj_out = Proj(init='epsg:32650')  # UTM Zone 50N
-        grid_size = 100
+        grid_size = 1
         latitudes = [point[0] for point in latlon_list]
         longitudes = [point[1] for point in latlon_list]
 
         # 转换经纬度为平面坐标
         x_coords, y_coords = transform(proj_in, proj_out, latitudes,longitudes)
 
-
         x_coords = np.array(x_coords)
         y_coords = np.array(y_coords)
+        self.x_min = min(x_coords)
+        self.y_min = min(y_coords)
         # 计算网格索引
-        self.path_x = (x_coords / grid_size).astype(int)
-        self.path_y = (y_coords / grid_size).astype(int)
+        self.path_x = (x_coords - self.x_min / grid_size).astype(int)
+        self.path_y = (y_coords - self.y_min/ grid_size).astype(int)
+
 
     def get_path(self):
         """获取所有路径坐标"""
         return self.path_x,self.path_y
 
-    def add_agent(self, agent: BusAgent, node_id: int) -> None:
-        """
-        将agent放置在初始位置,注意node_id表示第几个放入图的agent，从1开始
-        """
+    def add_agent(self, agent: BusAgent) -> None:
         proj_in = Proj(init='epsg:4326')  # WGS84
         proj_out = Proj(init='epsg:32650')  # UTM Zone 50N
-        grid_size = 100
+        grid_size = 1
         latitudes = agent.pos[0]
         longitudes = agent.pos[1]
-
-        # 转换经纬度为平面坐标
-        x_coords, y_coords = transform(proj_in, proj_out, latitudes,longitudes)
-
-
-        x_coords = np.array(x_coords)
-        y_coords = np.array(y_coords)
-        # 计算网格索引
-        self.agent_x.append((x_coords / grid_size).astype(int))
-        self.agent_y.append((y_coords / grid_size).astype(int))
-
-        self.agentindex.append(node_id-1)
-
-    def move_agent(self, agent: BusAgent, latlon_list,node_id: int) -> None:
-        proj_in = Proj(init='epsg:4326')  # WGS84
-        proj_out = Proj(init='epsg:32650')  # UTM Zone 50N
-        grid_size = 100
-        latitudes = latlon_list[0]
-        longitudes = latlon_list[1]
-
-        # 转换经纬度为平面坐标
-        x_coords, y_coords = transform(proj_in, proj_out, latitudes,longitudes)
-
-
-        x_coords = np.array(x_coords)
-        y_coords = np.array(y_coords)
-        # 计算网格索引
-        self.agent_x[node_id] = (x_coords / grid_size).astype(int)
-        self.agent_x[node_id] = (y_coords / grid_size).astype(int)
-        # 更改agent坐标
+        x_coords, y_coords = transform(proj_in, proj_out, latitudes, longitudes)
+        x_coords = int((x_coords - self.x_min / grid_size).astype(int))
+        y_coords = int((y_coords - self.y_min / grid_size).astype(int))
+        pos_list = [x_coords,y_coords]
+        pos_dict = dict()
+        pos_dict[agent.unique_id] = pos_list
+        self.agent_pos.update(pos_dict)
+        print(self.agent_pos)
+    def remove_agent(self, agent: Agent) -> None:
+        """把agent从当前位置移开，并且把agent的位置置为空值"""
+        if agent.unique_id in self.agent_pos:
+            del self.agent_pos[agent.unique_id]
+        else:
+            print('error：no such agent')
 
 
 
-    def get_agent(self,node_id: int):
-        """获取node_id的agent坐标"""
-        return self.agent_x[node_id],self.agent_y[node_id]
-    def visualize_grid(x_coords, y_coords):
+   ## def get_agent(self,node_id: int):
+
+    def visualize_grid(self, x_coords, y_coords):
         plt.figure(figsize=(6, 10))
         plt.scatter(x_coords, y_coords, s=0.1,c='blue', marker='o', label='Data Points')
         plt.title('Scatter plot of geographical points')
