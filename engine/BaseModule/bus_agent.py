@@ -1,7 +1,7 @@
 from typing import List, Tuple
 from BaseModule.agent import Agent
 from BaseModule.model import Model
-from BaseModule.physical_environment import Position
+
 
 class BusAgent(Agent):
     def __init__(self, unique_id: int, model: Model, route: List[Tuple[float, float]],route_name: str) -> None:
@@ -12,15 +12,18 @@ class BusAgent(Agent):
         self.route = route
         self.current_index = 0
         self.pos = route[0]
+        self.unique_id = unique_id
 
     def move(self) -> None:
-        """尝试移动到一个新的位置，并检查是否在范围内"""
+        """沿路线行驶"""
         if self.current_index < len(self.route) - 1:
             self.current_index += 1
             self.pos = self.route[self.current_index]
             print(f"Moved to position {self.pos}.")
         else:
             print("Reached the end of the route. Cannot move further.")
+
+
 
 
 
