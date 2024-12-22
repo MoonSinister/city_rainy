@@ -4,8 +4,9 @@ from BaseModule.physical_environment import Position
 from BaseModule.bus_agent import BusAgent
 from BaseModule.physical_environment import GeoGrid
 import json
+import warnings
 from random import Random
-
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def readroute(id: int):
     with open('route.geojson', 'r', encoding='utf-8') as file:

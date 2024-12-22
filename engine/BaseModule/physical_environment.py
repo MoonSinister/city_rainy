@@ -8,6 +8,8 @@ import math
 from numbers import Real
 from warnings import warn
 from pyproj import Proj, transform
+from scipy.sparse import lil_matrix
+from scipy.io import mmwrite, mmread
 """ 用于将经纬度转换为UTM二维坐标系"""
 
 
@@ -872,7 +874,7 @@ class NetworkGrid:
         )
 
 
-class GeoGrid:
+class GeoGrid:#路网储存为01稀疏矩阵，agent位置储存为字典，将经纬度转换为网格
 
     def __init__(self) -> None:
         """
@@ -884,7 +886,7 @@ class GeoGrid:
         self.path_x = []
         self.path_y = []
         self.agent_pos = dict()
-
+        self.grid = None
 
     def add_path(self,latlon_list) -> None:
         """
@@ -907,9 +909,17 @@ class GeoGrid:
         self.x_min = min(x_coords)
         self.y_min = min(y_coords)
         # 计算网格索引
-        self.path_x = (x_coords - self.x_min / grid_size).astype(int)
-        self.path_y = (y_coords - self.y_min/ grid_size).astype(int)
+        self.path_x = ((x_coords - self.x_min)/grid_size).astype(int)
+        self.path_y = ((y_coords - self.y_min)/grid_size).astype(int)
 
+        grid_x_size = max(self.path_x) + 1
+        grid_y_size = max(self.path_y) + 1
+        self.grid = lil_matrix(( grid_x_size, grid_y_size))
+
+
+        # 更新网格
+        for x, y in zip(self.path_x, self.path_y):
+            self.grid[x, y] = 1  #储存为稀疏矩阵
 
     def get_path(self):
         """获取所有路径坐标"""
@@ -918,12 +928,12 @@ class GeoGrid:
     def add_agent(self, agent: BusAgent) -> None:
         proj_in = Proj(init='epsg:4326')  # WGS84
         proj_out = Proj(init='epsg:32650')  # UTM Zone 50N
-        grid_size = 1
+        grid_size = 10
         latitudes = agent.pos[0]
         longitudes = agent.pos[1]
         x_coords, y_coords = transform(proj_in, proj_out, latitudes, longitudes)
-        x_coords = int((x_coords - self.x_min / grid_size).astype(int))
-        y_coords = int((y_coords - self.y_min / grid_size).astype(int))
+        x_coords = int(((x_coords - self.x_min)/grid_size).astype(int))
+        y_coords = int(((y_coords - self.y_min)/grid_size).astype(int))
         pos_list = [x_coords,y_coords]
         pos_dict = dict()
         pos_dict[agent.unique_id] = pos_list
