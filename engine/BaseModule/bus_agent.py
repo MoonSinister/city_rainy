@@ -42,11 +42,11 @@ class BusAgent(Agent):
         site = self.readsite()
         proj_in = Proj(init='epsg:4326')  # WGS84
         proj_out = Proj(init='epsg:32650')  # UTM Zone 50N
-        grid_size = 100
+        grid_size = 10
         latitudes = [point[0] for point in site]
         longitudes = [point[1] for point in site]
-        x_coords, y_coords = transform(proj_in, proj_out, latitudes, longitudes)
-        agent_x,agent_y = transform(proj_in, proj_out, self.pos[0], self.pos[1])
+        y_coords,x_coords = transform(proj_in, proj_out, latitudes, longitudes)
+        agent_y,agent_x = transform(proj_in, proj_out, self.pos[0], self.pos[1])
         x_coords = np.array(x_coords)
         y_coords = np.array(y_coords)
         x_min = min(min(x_coords),agent_x)
@@ -58,14 +58,15 @@ class BusAgent(Agent):
 
         grid_x_size = max(max(site_x),pos_x) + 1
         grid_y_size = max(max(site_y),pos_y) + 1
-        site_grid = np.zeros((grid_x_size, grid_y_size),np.int16)
+        site_grid = np.zeros((grid_x_size, grid_y_size),dtype=int)
         for x, y in zip(site_x, site_y):
             site_grid[x, y] = 1  #
+        # print(type(site_grid[0, 0]))
         #将站点存入网格，并且将agent当前位置转化成网格形式，只需要判定agent指定的格是否为1即可
 
-
+        # np.savetxt('matrix.txt', site_grid, fmt='%d',delimiter=',')
         # np.savetxt('matrix.csv', site_grid, delimiter=',')
-        if site_grid[0][0] == 0:
+        if site_grid[0][0] == 1:
             print('Get to a site,stop for a while')
             self.pos = self.route[self.current_index]
         else:

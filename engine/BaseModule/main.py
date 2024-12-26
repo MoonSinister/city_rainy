@@ -49,7 +49,7 @@ def main():
     mygrid.add_agent(agent0)
 
 
-    for i in range(5):
+    for i in range(1):
         i=i+1
         timesch.step()
 

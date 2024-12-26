@@ -902,7 +902,7 @@ class GeoGrid:#路网储存为01稀疏矩阵，agent位置储存为字典，将�
         longitudes = [point[1] for point in latlon_list]
 
         # 转换经纬度为平面坐标
-        x_coords, y_coords = transform(proj_in, proj_out, latitudes,longitudes)
+        y_coords,x_coords = transform(proj_in, proj_out, latitudes,longitudes)
 
         x_coords = np.array(x_coords)
         y_coords = np.array(y_coords)
@@ -931,7 +931,7 @@ class GeoGrid:#路网储存为01稀疏矩阵，agent位置储存为字典，将�
         grid_size = 10
         latitudes = agent.pos[0]
         longitudes = agent.pos[1]
-        x_coords, y_coords = transform(proj_in, proj_out, latitudes, longitudes)
+        y_coords,x_coords = transform(proj_in, proj_out, latitudes, longitudes)
         x_coords = int(((x_coords - self.x_min)/grid_size).astype(int))
         y_coords = int(((y_coords - self.y_min)/grid_size).astype(int))
         pos_list = [x_coords,y_coords]
@@ -951,7 +951,7 @@ class GeoGrid:#路网储存为01稀疏矩阵，agent位置储存为字典，将�
    ## def get_agent(self,node_id: int):
 
     def visualize_grid(self, x_coords, y_coords):
-        plt.figure(figsize=(6, 10))
+        plt.figure(figsize=(10, 6))
         plt.scatter(x_coords, y_coords, s=0.1,c='blue', marker='o', label='Data Points')
         plt.title('Scatter plot of geographical points')
         plt.xlabel('X Coordinates (meters)')
@@ -959,6 +959,8 @@ class GeoGrid:#路网储存为01稀疏矩阵，agent位置储存为字典，将�
         plt.grid()
         plt.legend()
         plt.show()
+
+
 
 
 
