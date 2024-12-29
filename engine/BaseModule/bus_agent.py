@@ -32,13 +32,13 @@ class BusAgent(Agent):
         if self.current_index < len(self.route) - 1:
             self.current_index += 1
             self.pos = self.route[self.current_index]
-            print(f"Moved to position {self.pos}.")
+            # print(f"Moved to position {self.pos}.")
         else:
             print("Reached the end of the route. Cannot move further.")
 
 
     def stop_for_site(self) -> None:
-        #行驶到站点附近
+        #行驶到站点附近后停靠
         site = self.readsite()
         proj_in = Proj(init='epsg:4326')  # WGS84
         proj_out = Proj(init='epsg:32650')  # UTM Zone 50N
@@ -76,6 +76,6 @@ class BusAgent(Agent):
 
 
     def step(self) -> None:
-        print(f"Hi, I am a bus agent, ID: {str(self.route_name)}.")
+        # print(f"Hi, I am a bus agent, ID: {str(self.route_name)}.")
         self.move_by_route()
-        self.stop_for_site()
+        # self.stop_for_site()

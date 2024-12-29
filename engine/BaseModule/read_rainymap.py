@@ -18,7 +18,7 @@ proj_out = Proj(init='epsg:32650')  # UTM Zone 50N
 latitudes = df_type4['latitude'].tolist()
 longitudes = df_type4['longitude'].tolist()
 
-x_coords, y_coords = transform(proj_in, proj_out, longitudes, latitudes)
+y_coords,x_coords= transform(proj_in, proj_out, longitudes, latitudes)
 
 x_coords = np.array(x_coords)
 y_coords = np.array(y_coords)
@@ -36,7 +36,7 @@ grid_y_size = max(path_y) + 1
 # 确定积水深度的全局最大值
 
 
-# 为每个时间点生成散点图
+# 为每个时间点生成积水矩阵，并可视化
 for hour in range(1, 17):
 
 

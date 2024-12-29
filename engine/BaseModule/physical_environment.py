@@ -938,7 +938,7 @@ class GeoGrid:#路网储存为01稀疏矩阵，agent位置储存为字典，将�
         pos_dict = dict()
         pos_dict[agent.unique_id] = pos_list
         self.agent_pos.update(pos_dict)
-        print(self.agent_pos)
+        # print(self.agent_pos)
     def remove_agent(self, agent: Agent) -> None:
         """把agent从当前位置移开，并且把agent的位置置为空值"""
         if agent.unique_id in self.agent_pos:

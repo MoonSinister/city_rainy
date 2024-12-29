@@ -27,27 +27,23 @@ def readsite():
         return pos
 def main():
     pos = readsite()
-    route0info = readroute(1)
-    route0 = route0info['geometry']['coordinates']
+
     mygrid = GeoGrid()
 
     # 首先导入路网，将其转换为二维网格
     mygrid.add_path(pos)
     x, y = mygrid.get_path()
-
     mygrid.visualize_grid(x, y)
-
     model = Model()
-
     timesch=BaseScheduler(model)
-    route0info = readroute(1)
-    route0 = route0info['geometry']['coordinates']
-    route0_name=route0info['properties']['name']
-    agent0 = BusAgent(unique_id=1, model=model,route=route0,route_name=route0_name)
-
-    timesch.add(agent0)
-    mygrid.add_agent(agent0)
-
+    agent = []
+    for i in range(30):
+        routeinfo = readroute(i)
+        route = routeinfo['geometry']['coordinates']
+        route_name = routeinfo['properties']['name']
+        agent.append(BusAgent(unique_id=i, model=model,route=route,route_name=route_name))
+        timesch.add(agent[i])
+        mygrid.add_agent(agent[i])
 
     for i in range(1):
         i=i+1
