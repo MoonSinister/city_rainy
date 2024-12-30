@@ -8,6 +8,7 @@ from scipy.io import mmwrite, mmread
 import json
 
 class BusAgent(Agent):
+
     def __init__(self, unique_id: int, model: Model, route: List[Tuple[float, float]],route_name: str) -> None:
         super().__init__(unique_id, model)
         if not route:
@@ -17,6 +18,7 @@ class BusAgent(Agent):
         self.current_index = 0
         self.pos = route[0]
         self.unique_id = unique_id
+        self.backward = 0 #到达终点后返程
 
     def readsite(self):
         with open('site.geojson', 'r', encoding='utf-8') as file:
@@ -27,14 +29,24 @@ class BusAgent(Agent):
                 pos.append(data['features'][index]['geometry']['coordinates'])
                 index = index + 1
             return pos
-    def move_by_route(self) -> None:
+
+
+    def move_by_route_back(self) -> None:
+        if self.current_index > 0:
+            self.current_index -= 1
+            self.pos = self.route[self.current_index]
+        else:
+            print("Reached the end of the route. go front.")
+            self.backward = 0
+    def move_by_route_front(self) -> None:
         """沿路线行驶"""
-        if self.current_index < len(self.route) - 1:
+        if self.current_index < len(self.route) - 1 :
             self.current_index += 1
             self.pos = self.route[self.current_index]
             # print(f"Moved to position {self.pos}.")
         else:
-            print("Reached the end of the route. Cannot move further.")
+            print("Reached the end of the route. go back.")
+            self.backward = 1
 
 
     def stop_for_site(self) -> None:
@@ -70,12 +82,16 @@ class BusAgent(Agent):
             print('Get to a site,stop for a while')
             self.pos = self.route[self.current_index]
         else:
-            self.move_by_route()
+            self.move_by_route_front()
 
 
 
 
     def step(self) -> None:
-        # print(f"Hi, I am a bus agent, ID: {str(self.route_name)}.")
-        self.move_by_route()
-        # self.stop_for_site()
+        global backward
+        if self.backward == 0:
+             # print(f"Hi, I am a bus agent, ID: {str(self.route_name)}.")
+            self.move_by_route_front()
+             # self.stop_for_site()
+        else:
+            self.move_by_route_back()

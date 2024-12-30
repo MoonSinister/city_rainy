@@ -9,7 +9,7 @@ from random import Random
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def readroute(id: int):
-    with open('route.geojson', 'r', encoding='utf-8') as file:
+    with open('hexiroute.geojson', 'r', encoding='utf-8') as file:
         data = json.load(file)
     routename = data['features'][id]['properties']
 
