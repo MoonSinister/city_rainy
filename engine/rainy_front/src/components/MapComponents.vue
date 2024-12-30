@@ -6,6 +6,7 @@
 
 <script>
 import axios from "axios";
+import output from "../assets/output.json"; // 导入 output.json 文件
 /* global AMap */
 export default {
   name: "App",
@@ -16,6 +17,7 @@ export default {
       heatmap: null, // 热力图实例
       isHeatmapReady: false, // 热力图是否初始化完成
       infoWindow: null, // 信息框实例
+      proximityRadius: 50, // 判断附近的范围（单位：米）
     };
   },
   methods: {
@@ -71,7 +73,7 @@ export default {
       this.updateMap();
       setInterval(() => {
         this.updateMap();
-      }, 1000);
+      }, 5000);
     },
 
     // 获取数据并更新地图
@@ -89,6 +91,67 @@ export default {
         }
       } catch (error) {
         console.error("获取数据失败：", error);
+      }
+    },
+
+    // 判断两个坐标点之间的距离是否小于指定范围
+    isNearby(coordinate, point) {
+      const [lng1, lat1] = coordinate;
+      const [lng2, lat2] = point;
+
+      // 使用 Haversine 公式计算两点间的距离（单位：米）
+      const R = 6371000; // 地球半径（单位：米）
+      const rad = (deg) => (deg * Math.PI) / 180;
+      const dLat = rad(lat2 - lat1);
+      const dLng = rad(lng2 - lng1);
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(rad(lat1)) *
+          Math.cos(rad(lat2)) *
+          Math.sin(dLng / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c < this.proximityRadius;
+    },
+
+    // 更新地图上的标记点
+    updateMarkers(newData) {
+      newData.forEach((newCoordinate, index) => {
+        // 如果点已存在，则平滑移动
+        if (this.markers[index]) {
+          this.moveMarker(this.markers[index], newCoordinate);
+        } else {
+          // 如果点不存在，则直接添加新点
+          const circleMarker = new AMap.CircleMarker({
+            center: newCoordinate, // 初始位置
+            radius: 6, // 圆点半径
+            strokeColor: "#fff", // 描边颜色
+            strokeWeight: 2, // 描边宽度
+            strokeOpacity: 1, // 描边透明度
+            fillColor: "#FF0000", // 默认填充颜色为红色
+            fillOpacity: 0.8, // 填充透明度
+            zIndex: 10, // 层级
+          });
+
+          circleMarker.setMap(this.map); // 添加到地图上
+          this.addInfoWindow(circleMarker, newCoordinate); // 为新点添加信息框功能
+          this.markers.push(circleMarker); // 保存到 markers 数组中
+        }
+
+        // 检查标记点是否在 JSON 定义的区域附近
+        const isInProximity = output.some((point) =>
+          this.isNearby(newCoordinate, point)
+        );
+
+        // 动态更新标记点颜色
+        this.markers[index].setOptions({
+          fillColor: isInProximity ? "#0000FF" : "#FF0000", // 蓝色或红色
+        });
+      });
+
+      // 如果新点数量小于现有点数量，移除多余的点
+      if (newData.length < this.markers.length) {
+        const excessMarkers = this.markers.splice(newData.length);
+        excessMarkers.forEach((marker) => marker.setMap(null));
       }
     },
 
@@ -115,38 +178,6 @@ export default {
       };
 
       animate();
-    },
-
-    // 更新地图上的标记点
-    updateMarkers(newData) {
-      newData.forEach((newCoordinate, index) => {
-        // 如果点已存在，则平滑移动
-        if (this.markers[index]) {
-          this.moveMarker(this.markers[index], newCoordinate);
-        } else {
-          // 如果点不存在，则直接添加新点
-          const circleMarker = new AMap.CircleMarker({
-            center: newCoordinate, // 初始位置
-            radius: 6, // 圆点半径
-            strokeColor: "#fff", // 描边颜色
-            strokeWeight: 2, // 描边宽度
-            strokeOpacity: 1, // 描边透明度
-            fillColor: "#007BFF", // 填充颜色
-            fillOpacity: 0.8, // 填充透明度
-            zIndex: 10, // 层级
-          });
-
-          circleMarker.setMap(this.map); // 添加到地图上
-          this.addInfoWindow(circleMarker, newCoordinate); // 为新点添加信息框功能
-          this.markers.push(circleMarker); // 保存到 markers 数组中
-        }
-      });
-
-      // 如果新点数量小于现有点数量，移除多余的点
-      if (newData.length < this.markers.length) {
-        const excessMarkers = this.markers.splice(newData.length);
-        excessMarkers.forEach((marker) => marker.setMap(null));
-      }
     },
 
     // 添加信息框功能
@@ -196,6 +227,7 @@ export default {
   },
 };
 </script>
+
 
 <style scoped>
 #container {
