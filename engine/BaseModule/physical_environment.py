@@ -19,7 +19,7 @@ import networkx as nx
 import collections
 import matplotlib.pyplot as plt
 
-from BaseModule.bus_agent import BusAgent
+from BaseModule.agent_bus import BusAgent
 from BaseModule.agent import Agent
 from typing import (
     Tuple,
@@ -875,90 +875,182 @@ class NetworkGrid:
 
 
 class GeoGrid:#路网储存为01稀疏矩阵，agent位置储存为字典，将经纬度转换为网格
+    """网络单元，每个节点可以有0个或多个agent"""
 
-    def __init__(self) -> None:
+    def __init__(self, g: Any, path_matrix: np.ndarray) -> None:
         """
-        将路网读入网格（路网数据为坐标对列表）
+        创建一个新的网络并根据路径矩阵初始化
+        :param g: 一个NetworkX网络实例
+        :param path_matrix: 路径矩阵，表示网络中哪些节点是可通行的
         """
-        # 初始化四个列表，分别用于存储路径和代理的坐标
-        self.x_min = 0
-        self.y_min = 0
-        self.path_x = []
-        self.path_y = []
-        self.agent_pos = dict()
-        self.grid = None
+        self.G = g
+        self.initialize_grid(path_matrix)  # 初始化图的结构
+        for node_id in self.G.nodes:
+            self.G.nodes[node_id]["agent"] = self.default_val()  # 初始化每个节点的agent为默认值
 
-    def add_path(self,latlon_list) -> None:
+    @staticmethod
+    def default_val() -> list:
+        """新节点的默认值"""
+        return []
+
+    def initialize_grid(self, path_matrix: np.ndarray):
         """
-        将经纬度数组转换为二维网格模型。
-        :param latlon_pairs: 经纬度对的列表
-        :param grid_size: 网格单元的大小（以米为单位）
-        :return: (x_indices, y_indices) 表示的二维网格坐标
+        初始化网格图
+        :param path_matrix: 矩阵数据，1为通行，0为障碍
         """
-        proj_in = Proj(init='epsg:4326')  # WGS84
-        proj_out = Proj(init='epsg:32650')  # UTM Zone 50N
-        grid_size = 1
-        latitudes = [point[0] for point in latlon_list]
-        longitudes = [point[1] for point in latlon_list]
+        rows, cols = path_matrix.shape
+        # 创建一个空的图
+        self.G = nx.grid_2d_graph(rows, cols)  # 生成一个大小为rows x cols的2D网格
 
-        # 转换经纬度为平面坐标
-        y_coords,x_coords = transform(proj_in, proj_out, latitudes,longitudes)
+        # 遍历路径矩阵并移除不可通行的边
+        for i in range(rows):
+            for j in range(cols):
+                if path_matrix[i, j] == 0:
+                    # 如果路径为0，则移除该节点的所有邻居（相当于创建一个障碍物）
+                    node = (i, j)
+                    neighbors = list(self.G.neighbors(node))
+                    for neighbor in neighbors:
+                        self.G.remove_edge(node, neighbor)
+                    # 还可以选择直接从图中移除节点
+                    # self.G.remove_node(node)
 
-        x_coords = np.array(x_coords)
-        y_coords = np.array(y_coords)
-        self.x_min = min(x_coords)
-        self.y_min = min(y_coords)
-        # 计算网格索引
-        self.path_x = ((x_coords - self.x_min)/grid_size).astype(int)
-        self.path_y = ((y_coords - self.y_min)/grid_size).astype(int)
-
-        grid_x_size = max(self.path_x) + 1
-        grid_y_size = max(self.path_y) + 1
-        self.grid = lil_matrix(( grid_x_size, grid_y_size))
-
-
-        # 更新网格
-        for x, y in zip(self.path_x, self.path_y):
-            self.grid[x, y] = 1  #储存为稀疏矩阵
-
-    def get_path(self):
-        """获取所有路径坐标"""
-        return self.path_x,self.path_y
-
-    def add_agent(self, agent: BusAgent) -> None:
-        proj_in = Proj(init='epsg:4326')  # WGS84
-        proj_out = Proj(init='epsg:32650')  # UTM Zone 50N
-        grid_size = 10
-        latitudes = agent.pos[0]
-        longitudes = agent.pos[1]
-        y_coords,x_coords = transform(proj_in, proj_out, latitudes, longitudes)
-        x_coords = int(((x_coords - self.x_min)/grid_size).astype(int))
-        y_coords = int(((y_coords - self.y_min)/grid_size).astype(int))
-        pos_list = [x_coords,y_coords]
-        pos_dict = dict()
-        pos_dict[agent.unique_id] = pos_list
-        self.agent_pos.update(pos_dict)
-        # print(self.agent_pos)
-    def remove_agent(self, agent: Agent) -> None:
-        """把agent从当前位置移开，并且把agent的位置置为空值"""
-        if agent.unique_id in self.agent_pos:
-            del self.agent_pos[agent.unique_id]
+    def get_neighborhood(self, node_id: tuple, include_center: bool = False, radius: int = 1) -> list[int]:
+        """在给定的半径范围内获取所有的邻接节点"""
+        if radius == 1:
+            neighborhood = list(self.G.neighbors(node_id))
+            if include_center:
+                neighborhood.append(node_id)
         else:
-            print('error：no such agent')
+            neighbors_with_distance = nx.single_source_shortest_path_length(self.G, node_id, radius)
+            if not include_center:
+                del neighbors_with_distance[node_id]
+            neighborhood = sorted(neighbors_with_distance.keys())
 
+        return neighborhood
 
+    def get_neighbors(self, node_id: tuple, include_center: bool = False) -> list:
+        """获得节点上的agent"""
+        neighborhood = self.get_neighborhood(node_id, include_center)
+        return self.get_cell_list_contents(neighborhood)
 
-   ## def get_agent(self,node_id: int):
+    def place_agent(self, agent: 'BusAgent', node_id: tuple) -> None:
+        """把agent放置到一个节点上"""
+        self.G.nodes[node_id]["agent"].append(agent)
+        agent.pos = node_id
 
-    def visualize_grid(self, x_coords, y_coords):
-        plt.figure(figsize=(10, 6))
-        plt.scatter(x_coords, y_coords, s=0.1,c='blue', marker='o', label='Data Points')
-        plt.title('Scatter plot of geographical points')
-        plt.xlabel('X Coordinates (meters)')
-        plt.ylabel('Y Coordinates (meters)')
-        plt.grid()
-        plt.legend()
-        plt.show()
+    def move_agent(self, agent: 'BusAgent', node_id: tuple) -> None:
+        """把agent从当前节点移动到另外一个新的节点"""
+        self.remove_agent(agent)
+        self.place_agent(agent, node_id)
+
+    def remove_agent(self, agent: 'BusAgent') -> None:
+        """把agent从当前位置移开，并且把agent的位置置为空值"""
+        node_id = agent.pos
+        self.G.nodes[node_id]["agent"].remove(agent)
+        agent.pos = None
+
+    def is_cell_empty(self, node_id: tuple) -> bool:
+        """返回一个bool类型的值，表示单元中的内容是否为空"""
+        return self.G.nodes[node_id]["agent"] == self.default_val()
+
+    def get_cell_list_contents(self, cell_list: list) -> list:
+        """返回节点列表中包含的agents列表，空节点将会被排除"""
+        return list(self.iter_cell_list_contents(cell_list))
+
+    def get_all_cell_contents(self) -> list:
+        """获得网络上所有的agent"""
+        return self.get_cell_list_contents(self.G)
+
+    def iter_cell_list_contents(self, cell_list: list) -> Iterator:
+        """返回节点列表中节点的Agents的迭代器，空节点将会被排除"""
+        return itertools.chain.from_iterable(
+            self.G.nodes[node_id]["agent"]
+            for node_id in itertools.filterfalse(self.is_cell_empty, cell_list)
+        )
+   #
+   #  def __init__(self) -> None:
+   #      """
+   #      将路网读入网格（路网数据为坐标对列表）
+   #      """
+   #      # 初始化四个列表，分别用于存储路径和代理的坐标
+   #      self.x_min = 0
+   #      self.y_min = 0
+   #      self.path_x = []
+   #      self.path_y = []
+   #      self.grid = None
+   #
+   #  def add_path(self,latlon_list) -> None:
+   #      """
+   #      将经纬度数组转换为二维网格模型。
+   #      :param latlon_pairs: 经纬度对的列表
+   #      :param grid_size: 网格单元的大小（以米为单位）
+   #      :return: (x_indices, y_indices) 表示的二维网格坐标
+   #      """
+   #      proj_in = Proj(init='epsg:4326')  # WGS84
+   #      proj_out = Proj(init='epsg:32650')  # UTM Zone 50N
+   #      grid_size = 1
+   #      latitudes = [point[0] for point in latlon_list]
+   #      longitudes = [point[1] for point in latlon_list]
+   #      self.x_min = min(longitudes)
+   #      self.y_min = min(latitudes)
+   #      # 转换经纬度为平面坐标
+   #      y_coords,x_coords = transform(proj_in, proj_out, latitudes,longitudes)
+   #
+   #      print(self.x_min,self.y_min)
+   #      x_coords = np.array(x_coords)
+   #      y_coords = np.array(y_coords)
+   #
+   #      # 计算网格索引
+   #      self.path_x = ((x_coords - 4269368.685792613)/grid_size).astype(int)
+   #      self.path_y = ((y_coords - 478619.21907742735)/grid_size).astype(int)
+   #
+   #      grid_x_size = max(self.path_x) + 1
+   #      grid_y_size = max(self.path_y) + 1
+   #      self.grid = lil_matrix(( grid_x_size, grid_y_size))
+   #
+   #
+   #      # 更新网格
+   #      for x, y in zip(self.path_x, self.path_y):
+   #          self.grid[x, y] = 1  #储存为稀疏矩阵
+   #
+   #  def get_path(self):
+   #      """获取所有路径坐标"""
+   #      return self.path_x,self.path_y
+   #
+   #  # def add_agent(self, agent: BusAgent) -> None:
+   #  #     proj_in = Proj(init='epsg:4326')  # WGS84
+   #  #     proj_out = Proj(init='epsg:32650')  # UTM Zone 50N
+   #  #     grid_size = 10
+   #  #     latitudes = agent.pos[0]
+   #  #     longitudes = agent.pos[1]
+   #  #     y_coords,x_coords = transform(proj_in, proj_out, latitudes, longitudes)
+   #  #     x_coords = int(((x_coords - self.x_min)/grid_size).astype(int))
+   #  #     y_coords = int(((y_coords - self.y_min)/grid_size).astype(int))
+   #  #     pos_list = [x_coords,y_coords]
+   #  #     pos_dict = dict()
+   #  #     pos_dict[agent.unique_id] = pos_list
+   #  #     self.agent_pos.update(pos_dict)
+   #  #     # print(self.agent_pos)
+   #  # def remove_agent(self, agent: Agent) -> None:
+   #  #     """把agent从当前位置移开，并且把agent的位置置为空值"""
+   #  #     if agent.unique_id in self.agent_pos:
+   #  #         del self.agent_pos[agent.unique_id]
+   #  #     else:
+   #  #         print('error：no such agent')
+   #
+   #
+   #
+   # ## def get_agent(self,node_id: int):
+   #
+   #  def visualize_grid(self, x_coords, y_coords):
+   #      plt.figure(figsize=(10, 6))
+   #      plt.scatter(x_coords, y_coords, s=0.1,c='blue', marker='o', label='Data Points')
+   #      plt.title('Scatter plot of geographical points')
+   #      plt.xlabel('X Coordinates (meters)')
+   #      plt.ylabel('Y Coordinates (meters)')
+   #      plt.grid()
+   #      plt.legend()
+   #      plt.show()
 
 
 

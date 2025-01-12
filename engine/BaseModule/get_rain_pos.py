@@ -22,6 +22,6 @@ def extract_coordinates(file_path, output_file):
     print(f"数据已保存到 {output_file}")
 
 # 示例：假设文件名为 "data.csv"，输出文件为 "output.json"
-csv_file = "./points.csv"
+csv_file = "route_map/points.csv"
 json_output = "output.json"
 extract_coordinates(csv_file, json_output)

@@ -5,7 +5,7 @@ from pyproj import Proj, transform
 from scipy.sparse import lil_matrix
 
 # 读取CSV文件
-df = pd.read_csv('points.csv')
+df = pd.read_csv('route_map/points.csv')
 
 # 筛选type为4的数据
 df_type4 = df[df['type'] == 4]

@@ -1,14 +1,18 @@
 <template>
   <div>
-    <MapComponents />
+    <!-- <MapComponents /> -->
+     <JiemianComponent />
+
   </div>
 </template>
 
 <script>
-import MapComponents from "./components/MapComponents.vue";
+// import MapComponents from "./components/MapComponents.vue";
+import JiemianComponent from "./components/myjiemian.vue";
 export default {
   components: {
-    MapComponents
+    // MapComponents,
+    JiemianComponent
   },
 };
 </script>

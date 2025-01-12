@@ -9,7 +9,7 @@ import axios from "axios";
 import output from "../assets/output.json"; // 导入 output.json 文件
 /* global AMap */
 export default {
-  name: "App",
+  name: "MapComponents",
   data() {
     return {
       map: null, // 高德地图实例
