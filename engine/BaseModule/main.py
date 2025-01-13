@@ -7,6 +7,7 @@ import numpy as np
 from BaseModule.physical_environment import GeoGrid
 import json
 import warnings
+import os
 from random import Random
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -18,9 +19,9 @@ model = Model()
 def get_agent():
     agent_list = []
     for i in range(1):#193
-        myagent = BusAgent(unique_id=i, model=model)
-        print(i)
-        agent_list.append(myagent)
+        for j in range(1):#3每个线路安排三辆车
+            myagent = BusAgent(unique_id=i*3+j,route_id=i, model=model)
+            agent_list.append(myagent)
     return agent_list
 
 
@@ -41,23 +42,31 @@ def plot_path(matrix):
     plt.title('Displaying 1s as large points')
     plt.show()
 
-
 def main():
+    map_path = './route_grid/tianjin_expand.npy'
+    map_matrix = np.load(map_path)
+    env = GeoGrid(map_matrix)
+    #初始化环境，初始状态不添加降水情况
     agent_list = get_agent()
-
-    # 去除所有site为全零矩阵的元素
+    #每种不同路线的busagent
     agent_list = [agent for agent in agent_list if not np.all(agent.site == 0)]
-
+    # 去除所有site为全零矩阵的元素（不好看）
     print(f"剩余的agent数量: {len(agent_list)}")  # 输出剩余的 agent 数量
-
     timesch = BaseScheduler(model)
+    for j in range(len(agent_list)):
+        # print(agent_list[j].name)
+        # plot_path(agent_list[j].route)
+        timesch.add(agent_list[j])
+    #将所有agent添加到时间表统一管理
 
-    # 继续执行你的逻辑
-    for i in range(len(agent_list)):
-        print(agent_list[i].name)
-        matrix = np.load('./route_grid/tianjin_expand.npy')
-        plot_path(matrix)
-        timesch.add(agent_list[i])
+    #每个时间更新env
+    for i in range(1):#16
+        rain_path = os.path.join('./raindata', f'{i+1}.npy')
+        rain_matrix = np.load(rain_path)
+        env.map_update(rain_matrix)
+        for j in range(2000):#5分钟走一下
+            timesch.step()
+
 
 
 if __name__ == "__main__":
