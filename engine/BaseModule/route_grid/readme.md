@@ -1,0 +1,3 @@
+site是所有站点转化为矩阵
+tianjin.npy是直接转成矩阵的河西区地图
+tianjin_expand.npy是将所有公交车路径与地图进行合并的矩阵

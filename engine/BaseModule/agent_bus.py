@@ -1,9 +1,9 @@
-from BaseModule.agent import Agent
-from BaseModule.model import Model
+import numpy as np
 import glob
 import os
-import numpy as np
-import re  # 导入正则表达式模块
+import re
+from BaseModule.agent import Agent
+from BaseModule.model import Model
 from BaseModule.trans_json_to_np import points_to_grid
 import json
 
@@ -11,148 +11,68 @@ import json
 class BusAgent(Agent):
 
     def __init__(self, unique_id: int, model: Model) -> None:
-        super().__init__(unique_id, model)
+        unique_id = unique_id+1
+        self.unique_id = unique_id
         self.name = self.get_route_name(unique_id)  # 从文件名中提取route_name
         self.route = self.load_route(unique_id)  # 加载指定的路线图
-        self.current_index = 0  # 用于确认运行方向
-        self.pos = None  # 在网格中运行的初始位置
-        self.unique_id = unique_id
-        self.backward = 0  # 到达终点后返程
-
+        self.site = self.get_pass_site(self.route)
+        # self.current_index = 0  # 用于确认运行方向
+        # self.backward = 0  # 到达终点后返程
     def get_route_name(self, unique_id: int) -> str:
         """
-        从文件名中提取 route_name。
-
-        参数：
-        - unique_id: 用于选择文件的索引
-
-        返回：
-        - route_name: 提取的路线名称
+        根据unique_id从文件名中提取route_name。
+        文件名格式：unique_id_路由名称.npy
+        例如：1_ABC.npy 会提取出ABC作为名称。
         """
+        # 设定路径为 ./route_grid 文件夹
         folder_path = './route_grid'
-        # 获取文件夹中的所有.npy文件路径（排除 _pycache 文件夹）
-        route_files = sorted(glob.glob(os.path.join(folder_path, '*.npy')))
+        pattern = os.path.join(folder_path, f"{unique_id}_*.npy")  # 匹配文件名格式，例如 "1_*.npy"
+        files = glob.glob(pattern)  # 查找匹配的文件
+        if not files:
+            raise FileNotFoundError(f"没有找到与unique_id {unique_id} 匹配的文件。")
 
-        # 确保索引有效
-        if unique_id < 0 or unique_id >= len(route_files):
-            raise IndexError(f"索引 {unique_id} 超出范围 (0-{len(route_files) - 1})")
-
-        # 获取第 unique_id 个文件
-        route_file_path = route_files[unique_id]
-
-        # 从文件路径中提取文件名（不包括路径）
-        file_name = os.path.basename(route_file_path)
-
-        # 使用正则表达式提取 route_name（即文件名的后半部分）
-        match = re.search(r'(\d+)_([\s\S]+).npy', file_name)
-
+        # 假设文件名格式为 "unique_id_name.npy"，提取出name部分
+        filename = os.path.basename(files[0])  # 取得文件的名字
+        match = re.match(rf"^{unique_id}_(.*).npy$", filename)
         if match:
-            # 提取出路由名称部分
-            return match.group(2)  # 返回第二组，路由名称
+            return match.group(1)  # 返回提取的名称部分
         else:
-            raise ValueError(f"文件名 {file_name} 格式不符合预期。")
+            raise ValueError(f"文件名格式不正确：{filename}")
 
-    def load_route(self, unique_id: int):
+    def load_route(self, unique_id: int) -> np.ndarray:
         """
-        根据 unique_id 从 ./route_grid 文件夹中加载对应的路线图文件。
-
-        参数：
-        - unique_id: 用于选择文件的索引
-
-        返回：
-        - route: 读取的路线网格数据
+        根据unique_id加载对应的.npy文件，返回对应的矩阵数据。
         """
+        # 设定路径为 ./route_grid 文件夹
         folder_path = './route_grid'
-        # 获取文件夹中的所有.npy文件路径（排除 _pycache 文件夹）
-        route_files = sorted(glob.glob(os.path.join(folder_path, '*.npy')))
+        pattern = os.path.join(folder_path, f"{unique_id}_*.npy")  # 匹配文件名格式
+        files = glob.glob(pattern)  # 查找匹配的文件
+        if not files:
+            raise FileNotFoundError(f"没有找到与unique_id {unique_id} 匹配的文件。")
 
-        # 确保索引有效
-        if unique_id < 0 or unique_id >= len(route_files):
-            raise IndexError(f"索引 {unique_id} 超出范围 (0-{len(route_files) - 1})")
+        # 假设只取第一个匹配的文件
+        file_path = files[0]
+        route_matrix = np.load(file_path)  # 加载.npy文件为矩阵
+        return route_matrix
 
-        # 获取第 unique_id 个文件
-        route_file_path = route_files[unique_id]
+    def get_pass_site(self,route: np.ndarray) -> np.ndarray:
 
-        # 读取 .npy 文件内容
-        route = np.load(route_file_path)  # 读取为 NumPy 数组
+        site_path = './route_grid/site.npy'
+        if not os.path.exists(site_path):
+            raise FileNotFoundError(f"没有找到文件：{site_path}")
 
-        return route
+        # 加载site.npy矩阵
+        site_matrix = np.load(site_path)
 
-    #
-    #放到环境里
-    # def readsite(self):
-    #     with open('site.geojson', 'r', encoding='utf-8') as file:
-    #         data = json.load(file)
-    #         index = 0
-    #         pos = []
-    #         while index < len(data['features']):
-    #             pos.append(data['features'][index]['geometry']['coordinates'])
-    #             index = index + 1
-    #         return pos
+        # 检查site和route是否形状相同
+        if site_matrix.shape != route.shape:
+            raise ValueError("site矩阵和route矩阵的形状不一致！")
 
+        # 找到site和route中都为1的位置
+        pass_site_mask = (site_matrix == 1) & (route == 1)
 
-    # def move_by_route_back(self) -> None:
-    #     if self.current_index > 0:
-    #         self.current_index -= 1
-    #         self.pos = self.route[self.current_index]
-    #     else:
-    #         print("Reached the end of the route. go front.")
-    #         self.backward = 0
-    # def move_by_route_front(self) -> None:
-    #     """沿路线行驶"""
-    #     if self.current_index < len(self.route) - 1 :
-    #         self.current_index += 1
-    #         self.pos = self.route[self.current_index]
-    #         # print(f"Moved to position {self.pos}.")
-    #     else:
-    #         print("Reached the end of the route. go back.")
-    #         self.backward = 1
-    #
-    #
-    # def stop_for_site(self) -> None:
-    #     #行驶到站点附近后停靠
-    #     site = self.readsite()
-    #     proj_in = Proj(init='epsg:4326')  # WGS84
-    #     proj_out = Proj(init='epsg:32650')  # UTM Zone 50N
-    #     grid_size = 10
-    #     latitudes = [point[0] for point in site]
-    #     longitudes = [point[1] for point in site]
-    #     y_coords,x_coords = transform(proj_in, proj_out, latitudes, longitudes)
-    #     agent_y,agent_x = transform(proj_in, proj_out, self.pos[0], self.pos[1])
-    #     x_coords = np.array(x_coords)
-    #     y_coords = np.array(y_coords)
-    #     x_min = min(min(x_coords),agent_x)
-    #     y_min = min(min(y_coords),agent_y)
-    #     site_x = ((x_coords - x_min) / grid_size).astype(int)
-    #     site_y = ((y_coords - y_min) / grid_size).astype(int)
-    #     pos_x = ((agent_x - x_min) / grid_size).astype(int)
-    #     pos_y = ((agent_y - x_min) / grid_size).astype(int)
-    #
-    #     grid_x_size = max(max(site_x),pos_x) + 1
-    #     grid_y_size = max(max(site_y),pos_y) + 1
-    #     site_grid = np.zeros((grid_x_size, grid_y_size),dtype=int)
-    #     for x, y in zip(site_x, site_y):
-    #         site_grid[x, y] = 1  #
-    #     # print(type(site_grid[0, 0]))
-    #     #将站点存入网格，并且将agent当前位置转化成网格形式，只需要判定agent指定的格是否为1即可
-    #
-    #     # np.savetxt('matrix.txt', site_grid, fmt='%d',delimiter=',')
-    #     # np.savetxt('matrix.csv', site_grid, delimiter=',')
-    #     if site_grid[0][0] == 1:
-    #         print('Get to a site,stop for a while')
-    #         self.pos = self.route[self.current_index]
-    #     else:
-    #         self.move_by_route_front()
-    #
-    #
-    #
-    #
-    # def step(self) -> None:
-    #     global backward
-    #     if self.backward == 0:
-    #          # print(f"Hi, I am a bus agent, ID: {str(self.route_name)}.")
-    #         self.move_by_route_front()
-    #          # self.stop_for_site()
-    #     else:
-    #         self.move_by_route_back()
+        # 生成一个新的矩阵，只有符合条件的点为1，其他点为0
+        result_matrix = np.zeros_like(route)
+        result_matrix[pass_site_mask] = 1  # 设置符合条件的位置为1
 
+        return result_matrix

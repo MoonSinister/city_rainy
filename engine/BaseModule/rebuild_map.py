@@ -71,6 +71,7 @@ def main():
             combined_matrix += map_grid  # 矩阵逐步累加
         print('step: ',i)
     plot_path(combined_matrix)
+    combined_matrix[combined_matrix > 0] = 1
         # plot_path(map_grid)
         # print(route[i])
     #现在route里还有顺序信息，直接用插值填满！！！！！！！！！！
